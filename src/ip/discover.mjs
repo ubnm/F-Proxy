@@ -80,8 +80,11 @@ export async function discover(options, { search = searchFofa, ranges } = {}) {
           asn: String(row.asn ?? '').replace(/^AS/i, ''), org: String(row.org ?? ''),
           server: String(row.server ?? ''), source: 'fofa', discoveredAt: new Date().toISOString() };
         const classification = classify(candidate, cfRanges, asns);
+        // Query pools are discovery hints. CIDR classification takes precedence
+        // when both pools are requested, even if FOFA's ASN label is stale.
         const reason = !publicIP(candidate.ip) ? 'non-public-or-invalid-ip' : candidate.port !== 443 ? 'unsupported-port' :
-          !matchesRegion(candidate, options) ? 'region-mismatch' : classification.kind !== kind ? classification.reason : null;
+          !matchesRegion(candidate, options) ? 'region-mismatch' : classification.kind === 'unknown' ? classification.reason :
+            options.kind !== 'both' && classification.kind !== options.kind ? 'pool-mismatch' : null;
         if (reason) {
           stats.rejected++;
           stats.rejectedByReason[reason] = (stats.rejectedByReason[reason] ?? 0) + 1;

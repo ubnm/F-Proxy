@@ -82,6 +82,7 @@ test('redirects, forbidden pages, content mismatch, broken TLS, partial response
     assert.equal(result.ok, false); assert.equal(result.error, expected);
   }
   assert.throws(() => probeOnce({ ip: '127.0.0.1', port: 443 }, options), /public IP/);
+  assert.throws(() => probeOnce({ ip: 'fec0::1', port: 443 }, options), /public IP/);
   for (const url of ['http://example.com', 'https://user:pass@example.com', 'https://example.com:8443', 'https://example.com/#x']) {
     assert.throws(() => testURL(url));
   }

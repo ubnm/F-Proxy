@@ -16,7 +16,7 @@ test('classification uses CIDRs, excludes private/mapped targets and does not tr
   assert.equal(classify(row('34.146.18.2', { asn: '396982' }), cf).kind, 'proxy');
   assert.equal(classify(row('8.8.8.8'), cf).kind, 'unknown');
   assert.equal(classify(row('8.8.8.8', { asn: '', server: '' }), cf).kind, 'unknown');
-  for (const ip of ['127.0.0.1', '10.1.2.3', '::1', '::ffff:127.0.0.1', 'fe80::1', '192.0.2.1', 'garbage']) {
+  for (const ip of ['127.0.0.1', '10.1.2.3', '::1', '::ffff:127.0.0.1', 'fe80::1', 'fec0::1', '192.0.2.1', 'garbage']) {
     assert.equal(publicIP(ip), false, ip);
   }
   assert.equal(publicIP('1.1.1.1'), true);
@@ -68,6 +68,19 @@ test('FOFA sends field order and credentials only to official HTTPS; errors neve
   await assert.rejects(searchFofa({ key, query: '' }, async () => ({ ok: true,
     json: async () => ({ results: [['wrong']] }) })), /row shape/);
   await assert.rejects(loadRanges(async () => ({ ok: true, text: async () => '<html>error</html>' })), /CIDR/);
+});
+
+test('combined discovery retains CIDR-confirmed Clean candidates returned by the Proxy query', async () => {
+  const options = { kind: 'both', size: 3, pages: 1 };
+  const search = async ({ query }) => query.includes('asn!=')
+    ? [row('104.16.1.1', { asn: '396982' })] : [];
+  const both = await discover(options, { ranges, search });
+  assert.equal(both.candidates.length, 1);
+  assert.equal(both.candidates[0].classification.kind, 'clean');
+  assert.equal(both.stats.rejected, 0);
+  const proxyOnly = await discover({ ...options, kind: 'proxy' }, { ranges, search });
+  assert.equal(proxyOnly.candidates.length, 0);
+  assert.equal(proxyOnly.stats.rejectedByReason['pool-mismatch'], 1);
 });
 
 const exportOptions = { top: 10, minSuccess: 1, maxLatency: 1500, minMbps: 0, maxAgeHours: 24 };
