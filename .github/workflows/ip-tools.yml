@@ -1,0 +1,20 @@
+name: Cloudflare IP tools
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test tests/ip/core.test.mjs tests/ip/probe.test.mjs tests/ip/cli.test.mjs
+      - run: node ip.mjs --help

@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run index.ts"
+    "start": "bun run index.ts",
+    "ip": "node ip.mjs",
+    "test:ip": "node --test tests/ip/*.test.mjs"
   },
   "devDependencies": {
     "@types/async": "^3.2.24",
