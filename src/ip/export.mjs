@@ -15,7 +15,8 @@ export function buildExport(report, options, template) {
       Number.isFinite(q.httpMs) && q.httpMs <= options.maxLatency &&
       (!options.minMbps || Number.isFinite(q.transferMbps) && q.transferMbps >= options.minMbps);
   }).sort((a, b) => b.quality.successRate - a.quality.successRate || a.quality.httpMs - b.quality.httpMs);
-  const select = kind => [...new Map(passing.filter(row => classify(row, ranges, report.asns).kind === kind)
+  const select = kind => options.kind && options.kind !== 'both' && options.kind !== kind ? [] :
+    [...new Map(passing.filter(row => classify(row, ranges, report.asns).kind === kind)
     .map(row => [row.ip, row])).values()].slice(0, options.top);
   const clean = select('clean'), proxy = select('proxy');
   const patch = {};

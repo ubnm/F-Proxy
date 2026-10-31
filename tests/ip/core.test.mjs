@@ -87,6 +87,10 @@ test('export ranks fresh passing candidates, brackets IPv6, preserves template f
   const proxyOnly = buildExport(report(candidates), { ...exportOptions, country: 'JP', includeProxyCandidates: true });
   assert.deepEqual(proxyOnly.patch.proxyIPs, ['34.146.18.2:443']);
   assert.equal(proxyOnly.patch.proxyIpMode, 'proxyip');
+  const filtered = buildExport(report(candidates), { ...exportOptions, kind: 'proxy', includeProxyCandidates: true });
+  assert.equal(filtered.clean.length, 0);
+  assert.equal(filtered.patch.cleanIPs, undefined);
+  assert.deepEqual(filtered.patch.proxyIPs, ['34.146.18.2:443']);
 });
 
 test('empty, stale, failed or geographically excluded results cannot replace a usable BPB export', () => {
