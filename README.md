@@ -1,5 +1,18 @@
 # F-Proxy
 
+## Cloudflare IP 工具（新增）
+
+新增独立 CLI：FOFA 发现 Clean IP / Proxy IP 候选、官方网段分类、地区筛选、
+TCP/TLS/HTTP 及有界下载检测、BPB v5 配置导出。使用 Node.js 20.12+，无需安装依赖。
+完整用法、检测边界和更新公告见 [Cloudflare IP 工具](docs/cloudflare-ip.md)。
+
+```powershell
+node --env-file=.env.local ip.mjs run --country JP --test-url https://your-worker.example/health --expect healthy
+```
+
+`.env.local` 中设置 `FOFA_KEY`。Proxy IP 候选默认不会写入 BPB 设置补丁；
+HTTPS 可用性与 BPB 实际转发验证分别记录。以下为原有免费订阅采集功能说明。
+
 这是一个由 AI 辅助生成的项目，旨在帮助用户在 Fofa 上搜索并验证免费的代理订阅链接。
 
 ## 项目初衷
