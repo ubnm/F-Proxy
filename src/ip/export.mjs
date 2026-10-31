@@ -1,5 +1,20 @@
 import { cidrList, classify, endpoint, matchesRegion, publicIP } from './network.mjs';
 
+export function decodeBpbTemplate(text) {
+  try { return JSON.parse(text); } catch { /* The panel's native backup is base64. */ }
+  try { return JSON.parse(atob(text.trim())); } catch {
+    throw new Error('BPB template must be a JSON settings object or a base64 .dat panel backup');
+  }
+}
+
+export function encodeBpbSettings(settings) {
+  // BPB uses JSON.parse(atob(text)), not a UTF-8 base64 decoder. Escape Unicode
+  // so both its browser decoder and JSON consumers retain non-ASCII fields.
+  const json = JSON.stringify(settings).replace(/[\u007f-\uffff]/g,
+    char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return btoa(json);
+}
+
 export function buildExport(report, options, template) {
   if (report.schemaVersion !== 1 || report.type !== 'report' || !Array.isArray(report.candidates)) {
     throw new Error('A version 1 quality report is required');
@@ -39,5 +54,5 @@ export function buildExport(report, options, template) {
       bpbForwardingVerified: false, exitCountryVerified: false,
       warnings: ['Region labels come from FOFA, not measured exit geography.',
         'Proxy IPs are HTTPS-tested candidates; BPB forwarding is not verified.',
-        'The patch is partial settings; merge with a backup or use the text fields. Do not import it as a full panel backup.'] } };
+        'JSON files are for inspection; import the .dat file into BPB, review the merged settings, then apply manually.'] } };
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { discover } from './src/ip/discover.mjs';
 import { cidrList, CF_ASNS, classify, matchesRegion, publicIP } from './src/ip/network.mjs';
 import { measure, testURL } from './src/ip/probe.mjs';
-import { buildExport } from './src/ip/export.mjs';
+import { buildExport, decodeBpbTemplate, encodeBpbSettings } from './src/ip/export.mjs';
 
 const HELP = `F-Proxy Cloudflare IP tools (Node.js >=20, no dependencies)
   node --env-file=.env.local ip.mjs run --country JP --test-url https://YOUR-WORKER/health --expect healthy
@@ -28,7 +28,7 @@ Options:
   --top 10 (1..100)              --min-success 1 (0..1)
   --max-latency 1500 (ms)        --min-mbps 0   --max-age-hours 24
   --include-proxy-candidates     Opt in to exporting unverified Proxy IPs
-  --bpb-template FILE            Merge fields into a plain BPB v5 settings backup
+  --bpb-template FILE            Merge a BPB v5 .dat backup or decoded JSON settings
   --help
 
 Classification and region are discovery evidence; HTTPS success does not prove BPB
@@ -75,7 +75,10 @@ export function parseOptions(args) {
   return options;
 }
 
-async function readJSON(file) { return JSON.parse(await readFile(file, 'utf8')); }
+async function readJSON(file) {
+  const text = await readFile(file, 'utf8');
+  try { return JSON.parse(text); } catch { throw new Error('Invalid JSON input file'); }
+}
 async function save(file, value) {
   const temp = `${file}.${process.pid}.tmp`;
   await writeFile(temp, value, { mode: 0o600 });
@@ -89,7 +92,7 @@ export async function main(args = process.argv.slice(2)) {
   // Validate locally before creating output files or spending API quota.
   if (['run', 'discover'].includes(command) && !options.key) throw new Error('FOFA_KEY is required');
   const ranges = options.rangesFile ? await readJSON(options.rangesFile) : undefined;
-  const template = options.templateFile ? await readJSON(options.templateFile) : undefined;
+  const template = options.templateFile ? decodeBpbTemplate(await readFile(options.templateFile, 'utf8')) : undefined;
   let data;
   if (['run', 'discover'].includes(command)) {
     data = await discover(options, { ranges });
@@ -120,11 +123,15 @@ export async function main(args = process.argv.slice(2)) {
     await mkdir(options.out, { recursive: true });
     const files = {
       'bpb-settings.patch.json': JSON.stringify(result.patch, null, 2),
+      'bpb-settings.patch.dat': encodeBpbSettings(result.patch),
       'export-metadata.json': JSON.stringify(result.metadata, null, 2),
       'clean-ips.txt': result.clean.map(row => row.ip.includes(':') ? `[${row.ip}]` : row.ip).join('\n'),
       'proxy-candidates.txt': result.proxy.map(row => `${row.ip.includes(':') ? `[${row.ip}]` : row.ip}:${row.port}`).join('\n'),
     };
-    if (result.settings) files['bpb-settings.json'] = JSON.stringify(result.settings, null, 2);
+    if (result.settings) {
+      files['bpb-settings.json'] = JSON.stringify(result.settings, null, 2);
+      files['bpb-settings.dat'] = encodeBpbSettings(result.settings);
+    }
     for (const [name, value] of Object.entries(files)) await save(join(options.out, name), value + '\n');
     console.log(`Exported ${result.clean.length} Clean IPs and ${result.proxy.length} Proxy candidates to ${options.out}`);
   }

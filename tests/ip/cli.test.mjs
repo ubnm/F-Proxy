@@ -24,6 +24,13 @@ test('CLI exports a quality report offline, preserves unrelated settings and pro
     const previous = await readFile(output, 'utf8');
     assert.deepEqual(JSON.parse(previous), { cleanIPs: ['104.16.1.1'] });
     assert.equal(JSON.parse(await readFile(join(dir, 'bpb-settings.json'), 'utf8')).chainProxy, 'keep');
+    assert.deepEqual(JSON.parse(atob(await readFile(join(dir, 'bpb-settings.patch.dat'), 'utf8'))), JSON.parse(previous));
+    // The panel exports .dat as btoa(JSON.stringify(settings)); import uses JSON.parse(atob(text)).
+    await writeFile(templateFile, btoa(JSON.stringify({ cleanIPs: ['old'], chainProxy: 'native-backup' })));
+    await exec(process.execPath, [cli, 'export', '--input', reportFile, '--out', dir, '--bpb-template', templateFile]);
+    const imported = JSON.parse(atob(await readFile(join(dir, 'bpb-settings.dat'), 'utf8')));
+    assert.equal(imported.chainProxy, 'native-backup');
+    assert.deepEqual(imported.cleanIPs, ['104.16.1.1']);
     report.candidates = [];
     await writeFile(reportFile, JSON.stringify(report));
     await assert.rejects(exec(process.execPath, [cli, 'export', '--input', reportFile, '--out', dir]), /preserved/);

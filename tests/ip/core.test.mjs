@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildQuery, discover, searchFofa, loadRanges, FOFA_FIELDS } from '../../src/ip/discover.mjs';
 import { cidrList, classify, matchesRegion, publicIP, endpoint } from '../../src/ip/network.mjs';
-import { buildExport } from '../../src/ip/export.mjs';
+import { buildExport, decodeBpbTemplate, encodeBpbSettings } from '../../src/ip/export.mjs';
 import { parseOptions } from '../../ip.mjs';
 
 const ranges = { cidrs: ['104.16.0.0/13', '2606:4700::/32'], fetchedAt: '2026-11-01T00:00:00Z' };
@@ -16,7 +16,8 @@ test('classification uses CIDRs, excludes private/mapped targets and does not tr
   assert.equal(classify(row('34.146.18.2', { asn: '396982' }), cf).kind, 'proxy');
   assert.equal(classify(row('8.8.8.8'), cf).kind, 'unknown');
   assert.equal(classify(row('8.8.8.8', { asn: '', server: '' }), cf).kind, 'unknown');
-  for (const ip of ['127.0.0.1', '10.1.2.3', '::1', '::ffff:127.0.0.1', 'fe80::1', 'fec0::1', '192.0.2.1', 'garbage']) {
+  for (const ip of ['127.0.0.1', '10.1.2.3', '::1', '::ffff:127.0.0.1', 'fe80::1', 'fec0::1',
+    '2001:2::1', '3fff::1', '192.0.2.1', 'garbage']) {
     assert.equal(publicIP(ip), false, ip);
   }
   assert.equal(publicIP('1.1.1.1'), true);
@@ -112,6 +113,15 @@ test('empty, stale, failed or geographically excluded results cannot replace a u
   assert.throws(() => buildExport(report([measured('34.146.18.2', { asn: '396982' })]), exportOptions), /include-proxy/);
   assert.throws(() => buildExport(report([measured('104.16.1.1')]), exportOptions, { data: {} }), /template/);
   assert.throws(() => buildExport({ type: 'discovery', schemaVersion: 1, candidates: [] }, exportOptions), /quality report/);
+});
+
+test('BPB v5 native .dat backups round-trip with the browser atob/JSON parser, including Unicode', () => {
+  const settings = { cleanIPs: ['old'], chainProxy: 'keep', description: '东京😀' };
+  assert.deepEqual(decodeBpbTemplate(JSON.stringify(settings)), settings);
+  assert.deepEqual(JSON.parse(atob(encodeBpbSettings(settings))), settings);
+  const native = btoa(JSON.stringify({ cleanIPs: ['old'], description: 'caf\u00e9' }));
+  assert.equal(decodeBpbTemplate(native).description, 'caf\u00e9');
+  assert.throws(() => decodeBpbTemplate('not-a-backup'), /BPB template/);
 });
 
 test('CLI validates bounds, countries, unknown flags and required test URL before spending quota', () => {

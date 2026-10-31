@@ -92,15 +92,23 @@ API 拒绝会返回错误并停止，不进行无界重试。默认每个池最�
 | `clean-ips.txt` | 通过门槛的入口，供 Clean IP/Domains 字段使用 |
 | `proxy-candidates.txt` | 通过指定目标 HTTPS 检测的待验证 Proxy 候选，含端口 |
 | `bpb-settings.patch.json` | 部分设置补丁，默认只包含非空 `cleanIPs` |
+| `bpb-settings.patch.dat` | 面板可导入的 Base64 部分设置，导入后与当前设置合并，需人工复核并应用 |
 | `export-metadata.json` | 数量、验证边界、风险标签 |
 | `bpb-settings.json` | 仅提供 `--bpb-template` 时生成：保留原配置其他字段的合并结果 |
+| `bpb-settings.dat` | 仅提供模板时生成，符合 BPB v5 面板原生导入格式的合并备份 |
 
-不要把部分补丁当成完整面板备份导入。可以粘贴文本字段，或提供从自己 BPB v5 面板
-导出的**平铺设置对象**（包含 `cleanIPs`，不是 HTTP API 响应包装）生成合并文件：
+BPB v5 导出文件使用 `btoa(JSON.stringify(settings))` 编码，文件后缀为 `.dat`；面板以
+`JSON.parse(atob(text))` 解码，再与当前设置合并。JSON 文件用于检查，不直接交给面板导入。
+可以粘贴文本字段，或将 `bpb-settings.patch.dat` 通过面板的 Import File 导入，复核后再应用。
+也可以提供自己的 BPB `.dat` 备份生成保留其他字段的合并备份：
 
 ```powershell
-node ip.mjs export --input out/ip/report.json --bpb-template bpb-backup.local.json --out out/ip
+node ip.mjs export --input out/ip/report.json --bpb-template bpb-backup.local.dat --out out/ip
 ```
+
+模板也接受解码后的平铺 JSON 设置对象（包含 `cleanIPs`，不是 HTTP API 响应包装）。
+工具同时生成 `bpb-settings.json` 供检查，以及 `bpb-settings.dat` 供原生面板导入。
+模板中的非 ASCII 内容会转为 JSON Unicode 转义，确保与面板的 `atob` 解码保持一致。
 
 Proxy 候选默认不进入设置补丁。需要人工在自己的 Worker 链路继续验证时，可显式生成候选配置：
 
@@ -118,6 +126,7 @@ IPv6 使用方括号；排名先看成功率，再看 HTTP 延迟。无合格结
 - [Clean IP 与 Proxy IP 官方说明](https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/9b2e33e8470b9c5de03a30592e99c640e7b1ae71/docs/en/docs/configuration/vless-trojan.md)
 - [BPB 设置字段](https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/9b2e33e8470b9c5de03a30592e99c640e7b1ae71/src/settings/settings.ts)
 - [Proxy IP 主设置](https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/9b2e33e8470b9c5de03a30592e99c640e7b1ae71/src/settings/main.ts)
+- [备份编码](https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/9b2e33e8470b9c5de03a30592e99c640e7b1ae71/src/handlers/subscription.ts)及[面板导入解码](https://github.com/bia-pain-bache/BPB-Worker-Panel/blob/9b2e33e8470b9c5de03a30592e99c640e7b1ae71/src/assets/panel/script.js)
 - [Cloudflare 官方 IPv4](https://www.cloudflare.com/ips-v4)、[IPv6](https://www.cloudflare.com/ips-v6)
 - [FOFA API](https://fofa.info/api)、[官方 Go SDK 字段清单](https://github.com/FofaInfo/GoFOFA/blob/main/fields.go)
 - [Cloudflare Anycast](https://developers.cloudflare.com/fundamentals/concepts/cloudflare-ip-addresses/)
